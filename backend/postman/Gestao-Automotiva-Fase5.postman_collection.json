@@ -1,0 +1,501 @@
+{
+  "info": {
+    "name": "Gestão Automotiva — Fase 5",
+    "description": "Coleção para testar o contrato da API (JWT, CRUD, busca, RBAC, erros UNIQUE).\n\n1) Rode o backend (porta 3001 por padrão).\n2) Execute \"Login OK (admin)\" — o token é salvo na variável {{token}}.\n3) Nos outros requests, o header Authorization usa Bearer {{token}}.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001/api" },
+    { "key": "token", "value": "" },
+    { "key": "proprietarioId", "value": "1" },
+    { "key": "veiculoId", "value": "1" },
+    { "key": "ordemId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "0. Público",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Login OK (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.token) {",
+                  "    pm.collectionVariables.set('token', data.token);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@email.com\",\n  \"senha\": \"123456\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Esperado: 200 + token. O script salva {{token}} automaticamente."
+          }
+        },
+        {
+          "name": "Login senha errada (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@email.com\",\n  \"senha\": \"senha-errada\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Esperado: 401 Credenciais inválidas"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Proprietários",
+      "item": [
+        {
+          "name": "Listar (JWT)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/proprietarios",
+            "description": "Esperado: 200. CPF NÃO deve aparecer."
+          }
+        },
+        {
+          "name": "Listar SEM token (401)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/proprietarios",
+            "description": "Esperado: 401"
+          }
+        },
+        {
+          "name": "Buscar por q (RF04)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/proprietarios?q=admin",
+              "host": ["{{baseUrl}}"],
+              "path": ["proprietarios"],
+              "query": [{ "key": "q", "value": "admin" }]
+            }
+          }
+        },
+        {
+          "name": "Buscar por id",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/proprietarios/{{proprietarioId}}"
+          }
+        },
+        {
+          "name": "Criar",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Maria Silva\",\n  \"email\": \"maria.silva@email.com\",\n  \"telefone\": \"11988887777\",\n  \"cpf\": \"12345678901\"\n}"
+            },
+            "url": "{{baseUrl}}/proprietarios",
+            "description": "Esperado: 201. Resposta sem CPF. Se email já existir: 409."
+          }
+        },
+        {
+          "name": "Email duplicado (409)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Outra Pessoa\",\n  \"email\": \"maria.silva@email.com\",\n  \"telefone\": \"11900001111\",\n  \"cpf\": \"98765432100\"\n}"
+            },
+            "url": "{{baseUrl}}/proprietarios",
+            "description": "Esperado: 409 Este e-mail já está cadastrado (rode Criar antes)."
+          }
+        },
+        {
+          "name": "Atualizar (PATCH)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telefone\": \"11977776666\"\n}"
+            },
+            "url": "{{baseUrl}}/proprietarios/{{proprietarioId}}"
+          }
+        },
+        {
+          "name": "Excluir (só admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/proprietarios/{{proprietarioId}}",
+            "description": "200 se sem veículos; 409 se tiver veículos."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Veículos",
+      "item": [
+        {
+          "name": "Listar (com JOIN proprietário)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/veiculos",
+            "description": "Esperado: 200 com proprietario (sem cpf)."
+          }
+        },
+        {
+          "name": "Buscar por id",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/veiculos/{{veiculoId}}"
+          }
+        },
+        {
+          "name": "Criar",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"marca\": \"Volkswagen\",\n  \"modelo\": \"Gol\",\n  \"placa\": \"ABC1D23\",\n  \"ano\": 2020,\n  \"cor\": \"Branco\",\n  \"proprietarioId\": 1\n}"
+            },
+            "url": "{{baseUrl}}/veiculos",
+            "description": "Ajuste proprietarioId se necessário. Placa duplicada → 409."
+          }
+        },
+        {
+          "name": "Placa duplicada (409)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"marca\": \"Fiat\",\n  \"modelo\": \"Uno\",\n  \"placa\": \"ABC1D23\",\n  \"ano\": 2018,\n  \"cor\": \"Prata\",\n  \"proprietarioId\": 1\n}"
+            },
+            "url": "{{baseUrl}}/veiculos",
+            "description": "Esperado: 409 Esta placa já está cadastrada"
+          }
+        },
+        {
+          "name": "Proprietário inexistente (404)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"marca\": \"Ford\",\n  \"modelo\": \"Ka\",\n  \"placa\": \"XYZ9Z99\",\n  \"proprietarioId\": 999999\n}"
+            },
+            "url": "{{baseUrl}}/veiculos",
+            "description": "Esperado: 404 Proprietário não encontrado"
+          }
+        },
+        {
+          "name": "Atualizar (PATCH)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cor\": \"Preto\"\n}"
+            },
+            "url": "{{baseUrl}}/veiculos/{{veiculoId}}"
+          }
+        },
+        {
+          "name": "Excluir (só admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/veiculos/{{veiculoId}}",
+            "description": "200 se sem ordens; 409 se tiver ordens."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Ordens de serviço",
+      "item": [
+        {
+          "name": "Listar (JOIN + dataEntrada DESC)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ordens-servico",
+            "description": "Esperado: 200 com veiculo.proprietario; mais recentes primeiro."
+          }
+        },
+        {
+          "name": "Buscar por id",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ordens-servico/{{ordemId}}"
+          }
+        },
+        {
+          "name": "Criar",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descricao\": \"Lavagem completa\",\n  \"tipoServico\": \"lavagem\",\n  \"valor\": 80.00,\n  \"veiculoId\": 1\n}"
+            },
+            "url": "{{baseUrl}}/ordens-servico"
+          }
+        },
+        {
+          "name": "Veículo inexistente (404)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descricao\": \"Teste FK\",\n  \"tipoServico\": \"lavagem\",\n  \"valor\": 10,\n  \"veiculoId\": 999999\n}"
+            },
+            "url": "{{baseUrl}}/ordens-servico",
+            "description": "Esperado: 404 Veículo não encontrado"
+          }
+        },
+        {
+          "name": "Atualizar dados (PATCH)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"valor\": 95.50,\n  \"descricao\": \"Lavagem + cera\"\n}"
+            },
+            "url": "{{baseUrl}}/ordens-servico/{{ordemId}}"
+          }
+        },
+        {
+          "name": "Atualizar status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"em_andamento\"\n}"
+            },
+            "url": "{{baseUrl}}/ordens-servico/{{ordemId}}/status",
+            "description": "Status válidos: aberto, em_andamento, concluido, cancelado"
+          }
+        },
+        {
+          "name": "Excluir (só admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/ordens-servico/{{ordemId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. RBAC (técnico)",
+      "item": [
+        {
+          "name": "Login técnico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.token) {",
+                  "    pm.collectionVariables.set('token', data.token);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"tecnico@email.com\",\n  \"senha\": \"123456\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Crie o usuário antes com SEED_PERFIL=tecnico (passo 8). Depois teste 403 em proprietários."
+          }
+        },
+        {
+          "name": "Técnico lista ordens (200)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ordens-servico"
+          }
+        },
+        {
+          "name": "Técnico em proprietários (403)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/proprietarios",
+            "description": "Esperado: 403 Acesso negado para este perfil"
+          }
+        }
+      ]
+    }
+  ]
+}
