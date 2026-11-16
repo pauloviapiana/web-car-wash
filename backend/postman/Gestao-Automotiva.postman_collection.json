@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Gestão Automotiva — Fase 5",
-    "description": "Coleção para testar o contrato da API (JWT, CRUD, busca, RBAC, erros UNIQUE).\n\n1) Rode o backend (porta 3001 por padrão).\n2) Execute \"Login OK (admin)\" — o token é salvo na variável {{token}}.\n3) Nos outros requests, o header Authorization usa Bearer {{token}}.",
+    "name": "Gestão Automotiva",
+    "description": "Coleção de entrega final — critérios de aceite da API.\n\n**Base:** {{baseUrl}} = http://localhost:3001/api\n\n**Como usar**\n1. Suba o backend (`npm run dev` em backend/) e rode `npm run seed` se ainda não populou.\n2. Importe este arquivo no Postman (Import → arquivo).\n3. Execute **Login OK (admin)** — o script salva o JWT em {{token}}.\n4. Rode os demais requests (Authorization: Bearer {{token}} já configurado).\n\n**Cenários de aceite cobertos nesta coleção**\n- Login válido → 200 + token\n- Senha incorreta → 401\n- Rota protegida sem token → 401\n- CRUD proprietários / veículos / ordens\n- Cadastro sem expor CPF; placa duplicada; proprietário/veículo inexistente\n- Atualizar status da ordem\n- Listagem de ordens com veículo + proprietário\n- RBAC (técnico: ordens ok, proprietários 403)\n\n**Seed não duplica** — não é request HTTP; veja a pasta **6. Aceite (Seed)** com o passo a passo no terminal.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -20,7 +20,8 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/health"
+            "url": "{{baseUrl}}/health",
+            "description": "Esperado: 200 { \"ok\": true }"
           }
         }
       ]
@@ -56,7 +57,7 @@
               "raw": "{\n  \"email\": \"admin@email.com\",\n  \"senha\": \"123456\"\n}"
             },
             "url": "{{baseUrl}}/auth/login",
-            "description": "Esperado: 200 + token. O script salva {{token}} automaticamente."
+            "description": "Aceite: HTTP 200 com token JWT e dados básicos. O script salva {{token}} automaticamente."
           }
         },
         {
@@ -71,7 +72,7 @@
               "raw": "{\n  \"email\": \"admin@email.com\",\n  \"senha\": \"senha-errada\"\n}"
             },
             "url": "{{baseUrl}}/auth/login",
-            "description": "Esperado: 401 Credenciais inválidas"
+            "description": "Aceite: HTTP 401 (credenciais inválidas)."
           }
         }
       ]
@@ -89,7 +90,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/proprietarios",
-            "description": "Esperado: 200. CPF NÃO deve aparecer."
+            "description": "Esperado: 200. CPF NÃO deve aparecer na resposta."
           }
         },
         {
@@ -99,7 +100,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/proprietarios",
-            "description": "Esperado: 401"
+            "description": "Aceite: rota protegida sem token → HTTP 401."
           }
         },
         {
@@ -112,11 +113,12 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/proprietarios?q=admin",
+              "raw": "{{baseUrl}}/proprietarios?q=Ana",
               "host": ["{{baseUrl}}"],
               "path": ["proprietarios"],
-              "query": [{ "key": "q", "value": "admin" }]
-            }
+              "query": [{ "key": "q", "value": "Ana" }]
+            },
+            "description": "Busca por nome ou email (após seed: Ana Souza)."
           }
         },
         {
@@ -128,7 +130,8 @@
             },
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/proprietarios/{{proprietarioId}}"
+            "url": "{{baseUrl}}/proprietarios/{{proprietarioId}}",
+            "description": "Esperado: 200 sem CPF."
           }
         },
         {
@@ -147,7 +150,7 @@
               "raw": "{\n  \"nome\": \"Maria Silva\",\n  \"email\": \"maria.silva@email.com\",\n  \"telefone\": \"11988887777\",\n  \"cpf\": \"12345678901\"\n}"
             },
             "url": "{{baseUrl}}/proprietarios",
-            "description": "Esperado: 201. Resposta sem CPF. Se email já existir: 409."
+            "description": "Aceite: HTTP 201; resposta sem CPF. Se email já existir: 409."
           }
         },
         {
@@ -166,7 +169,7 @@
               "raw": "{\n  \"nome\": \"Outra Pessoa\",\n  \"email\": \"maria.silva@email.com\",\n  \"telefone\": \"11900001111\",\n  \"cpf\": \"98765432100\"\n}"
             },
             "url": "{{baseUrl}}/proprietarios",
-            "description": "Esperado: 409 Este e-mail já está cadastrado (rode Criar antes)."
+            "description": "Esperado: 409. Rode Criar antes (mesmo email)."
           }
         },
         {
@@ -197,7 +200,7 @@
             "method": "DELETE",
             "header": [],
             "url": "{{baseUrl}}/proprietarios/{{proprietarioId}}",
-            "description": "200 se sem veículos; 409 se tiver veículos."
+            "description": "200 se sem veículos; 409 se tiver veículos. Use id de teste, não o do seed se quiser preservar a demo."
           }
         }
       ]
@@ -216,6 +219,16 @@
             "header": [],
             "url": "{{baseUrl}}/veiculos",
             "description": "Esperado: 200 com proprietario (sem cpf)."
+          }
+        },
+        {
+          "name": "Listar SEM token (401)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/veiculos",
+            "description": "Aceite: rota protegida sem token → HTTP 401."
           }
         },
         {
@@ -243,10 +256,10 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"marca\": \"Volkswagen\",\n  \"modelo\": \"Gol\",\n  \"placa\": \"ABC1D23\",\n  \"ano\": 2020,\n  \"cor\": \"Branco\",\n  \"proprietarioId\": 1\n}"
+              "raw": "{\n  \"marca\": \"Toyota\",\n  \"modelo\": \"Corolla\",\n  \"placa\": \"TST9A99\",\n  \"ano\": 2022,\n  \"cor\": \"Cinza\",\n  \"proprietarioId\": 1\n}"
             },
             "url": "{{baseUrl}}/veiculos",
-            "description": "Ajuste proprietarioId se necessário. Placa duplicada → 409."
+            "description": "Aceite: HTTP 201 com vínculo ao proprietário. Ajuste proprietarioId se necessário. Placa do seed (ABC1D23) → use o request de duplicada."
           }
         },
         {
@@ -265,7 +278,7 @@
               "raw": "{\n  \"marca\": \"Fiat\",\n  \"modelo\": \"Uno\",\n  \"placa\": \"ABC1D23\",\n  \"ano\": 2018,\n  \"cor\": \"Prata\",\n  \"proprietarioId\": 1\n}"
             },
             "url": "{{baseUrl}}/veiculos",
-            "description": "Esperado: 409 Esta placa já está cadastrada"
+            "description": "Aceite: placa UNIQUE rejeitada (após seed, ABC1D23 já existe) → 409."
           }
         },
         {
@@ -284,7 +297,7 @@
               "raw": "{\n  \"marca\": \"Ford\",\n  \"modelo\": \"Ka\",\n  \"placa\": \"XYZ9Z99\",\n  \"proprietarioId\": 999999\n}"
             },
             "url": "{{baseUrl}}/veiculos",
-            "description": "Esperado: 404 Proprietário não encontrado"
+            "description": "Aceite: ID de proprietário inexistente → 404."
           }
         },
         {
@@ -333,7 +346,17 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/ordens-servico",
-            "description": "Esperado: 200 com veiculo.proprietario; mais recentes primeiro."
+            "description": "Aceite: listagem exibe veículo e proprietário relacionados (sem CPF)."
+          }
+        },
+        {
+          "name": "Listar SEM token (401)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ordens-servico",
+            "description": "Aceite: rota protegida sem token → HTTP 401."
           }
         },
         {
@@ -361,9 +384,10 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"descricao\": \"Lavagem completa\",\n  \"tipoServico\": \"lavagem\",\n  \"valor\": 80.00,\n  \"veiculoId\": 1\n}"
+              "raw": "{\n  \"descricao\": \"Polimento — teste Postman\",\n  \"tipoServico\": \"lava-car\",\n  \"valor\": 80.00,\n  \"veiculoId\": 1\n}"
             },
-            "url": "{{baseUrl}}/ordens-servico"
+            "url": "{{baseUrl}}/ordens-servico",
+            "description": "Aceite: HTTP 201, vinculada ao veículo, status padrão aberto."
           }
         },
         {
@@ -379,10 +403,10 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"descricao\": \"Teste FK\",\n  \"tipoServico\": \"lavagem\",\n  \"valor\": 10,\n  \"veiculoId\": 999999\n}"
+              "raw": "{\n  \"descricao\": \"Teste FK\",\n  \"tipoServico\": \"lava-car\",\n  \"valor\": 10,\n  \"veiculoId\": 999999\n}"
             },
             "url": "{{baseUrl}}/ordens-servico",
-            "description": "Esperado: 404 Veículo não encontrado"
+            "description": "Esperado: 404 Veículo não encontrado."
           }
         },
         {
@@ -419,7 +443,7 @@
               "raw": "{\n  \"status\": \"em_andamento\"\n}"
             },
             "url": "{{baseUrl}}/ordens-servico/{{ordemId}}/status",
-            "description": "Status válidos: aberto, em_andamento, concluido, cancelado"
+            "description": "Aceite: HTTP 200 com o novo status. Válidos: aberto, em_andamento, concluido, cancelado."
           }
         },
         {
@@ -467,7 +491,7 @@
               "raw": "{\n  \"email\": \"tecnico@email.com\",\n  \"senha\": \"123456\"\n}"
             },
             "url": "{{baseUrl}}/auth/login",
-            "description": "Crie o usuário antes com SEED_PERFIL=tecnico (passo 8). Depois teste 403 em proprietários."
+            "description": "Requer seed (`npm run seed`). Substitui {{token}} pelo JWT do técnico."
           }
         },
         {
@@ -479,7 +503,27 @@
             },
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/ordens-servico"
+            "url": "{{baseUrl}}/ordens-servico",
+            "description": "Esperado: 200."
+          }
+        },
+        {
+          "name": "Técnico atualiza status (200)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"concluido\"\n}"
+            },
+            "url": "{{baseUrl}}/ordens-servico/{{ordemId}}/status",
+            "description": "Técnico pode atualizar status."
           }
         },
         {
@@ -492,7 +536,22 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/proprietarios",
-            "description": "Esperado: 403 Acesso negado para este perfil"
+            "description": "Esperado: 403 Acesso negado para este perfil."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Aceite (Seed)",
+      "description": "O critério \"Seed executado de novo → não duplica registros\" NÃO é um endpoint HTTP. Teste no terminal (PowerShell), com o backend parado ou em outro terminal.",
+      "item": [
+        {
+          "name": "Como testar seed sem duplicar (leia a descrição)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health",
+            "description": "Este request só confirma que a API está no ar. O teste do seed é no terminal:\n\n```powershell\ncd backend\nnpm run seed\nnpm run seed\n```\n\nNa segunda execução, o console deve mostrar mensagens do tipo **já existia** / **já existia** para usuários, proprietários, veículos e ordens — sem criar linhas duplicadas (estratégia findOrCreate por email, placa e chave estável da ordem).\n\nOpcional: conte registros no PostgreSQL antes e depois; os totais dos dados demo não devem dobrar."
           }
         }
       ]
