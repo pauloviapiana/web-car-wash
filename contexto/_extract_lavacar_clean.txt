@@ -1,0 +1,355 @@
+===== PAGE 1 =====
+Oobjetivoéorientaraconstruçãodeumsistemawebparagerenciamentodeserviçosautomotivos,podendoserutilizadoemumaoficinamecânicaouemumlava-car.Osistemadeverápermitircadastrarproprietários,registrarseusveículoseacompanharosserviçossolicitadosourealizados.OprojetotambémpermitecompararduasmaneirasdeacessaroPostgreSQL:●AlternativaA:utilizaropacotepgparaexecutarcomandosSQLdiretamente.●AlternativaB:utilizarSequelize,umORMquerepresentaastabelaspormeiodeModelseoferecemétodosparaconsultaregravardados.Asduasalternativascompartilhamamesmamodelagem,regrasdenegócio,autenticação,endpointsHTTPefrontendReact.Portanto,nãoénecessáriocriardoisfrontends:oquemudaéaimplementaçãodacamadadepersistêncianobackend.PartedosistemaResponsabilidadePostgreSQLArmazenarusuários,proprietários,veículoseordensdeserviço.BackendNode.js+ExpressImplementarregrasdenegócio,autenticaçãoeAPIREST.Persistência:pgouSequelizeExecutarconsultaseoperaçõesnobancodedados.FrontendReact+AxiosExibirtelas,enviarrequisiçõeseapresentarosdados.Ordemrecomendadadedesenvolvimento1.Preencheradocumentaçãoecompreenderosrequisitos.2.CriarobancoeasquatrotabelasnoPostgreSQL.3.Escolherumaestratégiadepersistência:pgouSequelize.4.Configuraraconexãoetestaracomunicaçãocomobanco.5.Implementarconsultasparametrizadas(pg)ouModelseassociações(Sequelize).6.Implementarcadastrodeusuários,bcrypt,logineJWT.7.Criarcontrollerserotasdeproprietários,veículoseordensdeserviço.8.Criareexecutaroseedparainserirdadosdedemonstração.9.TestarosendpointscomInsomniaouPostman.10.CriarofrontendReacteconfigurarainstânciaAxios.11.Implementarlogin,dashboardecomponentesdelistagem.Entenderoproblemaedefinirrequisitos
+
+
+===== PAGE 2 =====
+Umaempresaqueprestaserviçosautomotivosprecisaorganizarosdadosdosclientes,seusveículoseosserviçosrealizados.Atualmente,osregistrospodemestardistribuídosemplanilhas,anotaçõesousistemasdiferentes.Issodificultalocalizarohistóricodeumveículo,identificarseuproprietárioeacompanharosserviçosqueaindaestãoemandamento.Apropostaédesenvolverumaaplicaçãowebquecentralizeessasinformações.Omesmosistemadeveráatenderadoiscenários:Cenário1—OficinamecânicaAempresarealizamanutençãopreventivaecorretiva,trocadepeças,revisão,diagnósticoeoutrosserviços.Cadaatendimentogeraumaordemdeserviçoqueregistraoproblemarelatado,oserviçoexecutado,ovaloreoandamentodoatendimento.Cenário2—Lava-carAempresarealizalavagemsimples,lavagemcompleta,higienizaçãointerna,polimentoeoutrosserviços.Cadaatendimentoregistraoserviçocontratado,oveículo,ovaloreostatusdaexecução.Aestruturatécnicaseráamesma.Oquemudaéadescriçãodosserviçosutilizadosnocadastro.RequisitosfuncionaisIDRequisitoverificávelRF01Permitirlogineinformarfalhaquandoascredenciaisforeminválidas.RF02Asessãoautenticadadeveexpirarapósumperíododefinido.RF03Exibironomedousuáriologado,navegaçãoeopçãodesair.RF04Permitirpesquisarproprietárioseatualizaralistacomosresultados.RF05Permitircadastrarveículosvinculadosaumproprietárioexistente.RF06Listarveículosapresentandoseusrespectivosproprietários.RF07Permitircadastrarordensdeserviçovinculadasaumveículo.RF08Listarordensdeserviçocomdadosdoveículoedoproprietário,ordenadaspeladata.RF09Permitiratualizarostatusdeumaordemdeserviço.RF10Protegerdadospessoaisenãoexporsegredosnocódigo-fonte.
+
+
+===== PAGE 3 =====
+RF11EntregarscriptSQLcompelomenostrêsregistrosportabela.RF12EntregardocumentaçãoeDERcompatíveiscomobancoimplementado.Perguntasquedevemserrespondidasantesdecomeçar●Quaistelasserãonecessáriasecomoousuárionavegaentreelas?●Quaiscampossãoobrigatóriosemcadacadastro?●Oquedeveacontecerseoproprietárioinformadonãoexistir?●Comoidentificarumveículo?Qualinformaçãodeveserúnica?●Oqueacontecequandoumaordemdeserviçoéconcluída?●ComoserácomprovadoqueabuscafoifeitapelaAPIepelobanco?1.EscopofuncionaldosistemaOsistemadeverácontemplar:●Autenticarusuáriosinternosdaempresapore-mailesenha.●Cadastrareconsultarproprietários.●Cadastrareconsultarveículos,vinculandocadaveículoaumproprietário.●Cadastrareconsultarordensdeserviço,vinculandocadaordemaumveículo.●Atualizarostatusdosserviços.●ProtegerasrotasdaAPIcomtokenJWT.●Apresentarumdashboardsimplescomaslistagensprincipais.1.1EntidadeserelacionamentosEntidadePrincipaiscamposRegraderelacionamentoUsuarionome,email,senha,perfilAutenticaosfuncionáriosdaempresa.Proprietarionome,email,telefone,cpfUmproprietáriopodepossuirváriosveículos.Veiculomarca,modelo,placa,ano,cor,proprietarioIdCadaveículopertenceaumproprietário.OrdemServicodataEntrada,descricao,tipoServico,valor,status,veiculoIdCadaordemdeserviçopertenceaumveículo.EntendendocadaentidadeUsuario
+
+
+===== PAGE 4 =====
+Representaosfuncionáriosqueacessamosistema.Exemplosdeperfis:●admin:administraosistema.●atendente:realizacadastroseregistraserviços.●tecnico:executaosserviçoseatualizaseuandamento.ProprietarioRepresentaoclientequepossuiumoumaisveículos.Campossugeridos:●id●nome●email●telefone●cpfVeiculoRepresentaoautomóvelquereceberáosserviços.Campossugeridos:●id●marca●modelo●placa●ano●cor●proprietarioIdOrdemServicoRepresentaumatendimentoouserviçosolicitadoparadeterminadoveículo.Campossugeridos:●id●dataEntrada●descricao●tipoServico●valor●status●veiculoIdExemplosdetiposdeserviço:
+
+
+===== PAGE 5 =====
+None
+OficinamecânicaLava-carTrocadeóleoLavagemsimplesRevisãopreventivaLavagemcompletaTrocadepastilhasHigienizaçãointernaDiagnósticomecânicoPolimentoAlinhamentoEnceramentoExemplosdestatus:●aberto●em_andamento●concluido●canceladoRegraimportante:ostiposdeserviçosãoarmazenadoscomotexto.Assim,nãoénecessáriocriartabelasadicionaisparacadatipodeserviço.Relacionamentos●Proprietario1Veiculo.●Veiculo1OrdemServico.AentidadeUsuarionãoprecisaestarligadadiretamenteaoproprietárioouveículonoescopoinicial.2.OrganizaçãodoprojetoEstruturasugerida:gestao-automotiva/├──server/│├──src/││├──config/│││└──database.js││├──controllers/│││├──authController.js│││├──proprietarioController.js│││├──veiculoController.js│││└──ordemServicoController.js
+
+
+===== PAGE 6 =====
+Shell
+││├──middlewares/│││└──auth.js││├──models/│││├──Usuario.js│││├──Proprietario.js│││├──Veiculo.js│││└──OrdemServico.js││├──routes/│││└──index.js││├──seeders/│││└──seed.js││└──server.js│├──.env│└──package.json└──client/├──.env└──src/├──components/├──services/│└──api.js├──App.jsx└──App.cssApastamodelsénecessárianaalternativaSequelize.Naalternativapg,oscontrollerspodemexecutarasconsultasdiretamentepormeiodopooldeconexões.3.Preparaçãodoambiente3.1CriarobackendCriarpastaseiniciarprojetoviaterminal:mkdirgestao-automotivacdgestao-automotivamkdirservercdserver
+
+
+===== PAGE 7 =====
+Shell
+JSON
+Shell
+npminit-ynpminstallexpresscorsdotenvpgbcryptjsonwebtokennpminstall-DnodemonParautilizarSequelize,instaletambém:npminstallsequelizepg-hstoreOpacotepgjáfoiinstaladonocomandoprincipaletambéméutilizadopeloSequelizecomodriverdecomunicaçãocomoPostgreSQL.3.2Configurarpackage.jsonNoarquivoserver/package.json,configurar:{"type":"module","scripts":{"dev":"nodemonsrc/server.js","start":"nodesrc/server.js","seed":"nodesrc/seeders/seed.js"}}Oatributotype:modulepermiteutilizaroscomandosimporteexportnosarquivosJavaScriptnolugardorequire.3.3CriarofrontendVoltarparaapastaprincipal:cd..
+
+
+===== PAGE 8 =====
+Shell
+None
+None
+npmcreatevite@latestclientSelecionar:●React●JavaScript●ESLintDepois:cdclientnpminstallnpminstallaxios3.4VariáveisdeambienteCriaroarquivoserver/.env:PORT=3000DB_HOST=localhostDB_PORT=5432DB_NAME=gestao_automotivaDB_USER=postgresDB_PASSWORD=sua_senhaJWT_SECRET=gere_uma_chave_forteFRONTEND_ORIGIN=http://localhost:5173Criaroarquivoclient/.env:VITE_API_URL=http://localhost:3000/api
+
+
+===== PAGE 9 =====
+SQL
+SQL
+Paracriarobancogestao_automotivanoPostgreSQL,podemosutilizaropgAdminouDBeaver.Gereseusprópriossegredosenãopubliqueoarquivo.envemrepositórios.4.EstruturadobancodedadosAestruturarelacionalseráamesmanasduasalternativas.OexemploSQLcriaquatrotabelas,chavesprimárias,chavesestrangeiras,restriçõesdevaloresetimestampsutilizadosnosexemplosSequelize.4.1CriaratabeladeusuáriosCREATETABLEusuarios(idSERIALPRIMARYKEY,nomeVARCHAR(120)NOTNULL,emailVARCHAR(160)NOTNULLUNIQUE,senhaVARCHAR(255)NOTNULL,perfilVARCHAR(20)NOTNULLCHECK(perfilIN('admin','atendente','tecnico')),"createdAt"TIMESTAMPTZNOTNULLDEFAULTNOW(),"updatedAt"TIMESTAMPTZNOTNULLDEFAULTNOW());Atabelaguardaasinformaçõesdosfuncionáriosquepossuemacessoaosistema.Asenhadeveráserarmazenadautilizandobcrypt,nuncaemtextopuro.4.2Criaratabeladeproprietários(tabelasimples)CREATETABLEproprietarios(idSERIALPRIMARYKEY,nomeVARCHAR(120)NOTNULL,emailVARCHAR(160)NOTNULLUNIQUE,telefoneVARCHAR(20)NOTNULL,cpfTEXTNOTNULL,"createdAt"TIMESTAMPTZNOTNULLDEFAULTNOW(),"updatedAt"TIMESTAMPTZNOTNULLDEFAULTNOW()
+
+
+===== PAGE 10 =====
+SQL
+SQL
+);Atabelarepresentaosclientesdaoficinaoulava-car.OCPFseráarmazenadoparaidentificação,masnãodeveráserexibidoemlistagenscomuns.4.3Criaratabeladeveículos(exemplodetabelacomFKda4.2)CREATETABLEveiculos(idSERIALPRIMARYKEY,marcaVARCHAR(80)NOTNULL,modeloVARCHAR(100)NOTNULL,placaVARCHAR(10)NOTNULLUNIQUE,anoINTEGER,corVARCHAR(40),"proprietarioId"INTEGERNOTNULLREFERENCESproprietarios(id),"createdAt"TIMESTAMPTZNOTNULLDEFAULTNOW(),"updatedAt"TIMESTAMPTZNOTNULLDEFAULTNOW());Aplacaidentificaoveículoeseráúnicanobancodedados.AchaveestrangeiraproprietarioIdestabeleceorelacionamentoentreoveículoeseuproprietário.4.4CriaratabeladeordensdeserviçoCREATETABLEordens_servico(idSERIALPRIMARYKEY,"dataEntrada"TIMESTAMPTZNOTNULLDEFAULTNOW(),descricaoVARCHAR(255)NOTNULL,"tipoServico"VARCHAR(100)NOTNULL,valorNUMERIC(10,2)NOTNULLDEFAULT0CHECK(valor>=0),
+
+
+===== PAGE 11 =====
+None
+statusVARCHAR(20)NOTNULLDEFAULT'aberto'CHECK(statusIN('aberto','em_andamento','concluido','cancelado')),"veiculoId"INTEGERNOTNULLREFERENCESveiculos(id),"createdAt"TIMESTAMPTZNOTNULLDEFAULTNOW(),"updatedAt"TIMESTAMPTZNOTNULLDEFAULTNOW());Aordemdeserviçoregistraoatendimentoprestadoaoveículo.Ocampodescricaopermiteexplicaroqueoclientesolicitououqualproblemafoiidentificado.OcampotipoServicoidentificaaatividadeexecutada.Ocampovalorrepresentaovalorcobradopeloatendimento.Ocampostatuspermiteacompanharoandamentodoserviço.Podemossubstituiravalidaçãodatabelaordens_serviçoporumENUMCREATETYPEstatus_ordemASENUM('aberto','em_andamento','concluido','cancelado');e
+
+
+===== PAGE 12 =====
+None
+None
+CREATETABLEordens_servico(idSERIALPRIMARYKEY,"dataEntrada"TIMESTAMPTZNOTNULLDEFAULTNOW(),descricaoVARCHAR(255)NOTNULL,"tipoServico"VARCHAR(100)NOTNULL,valorNUMERIC(10,2)NOTNULLDEFAULT0CHECK(valor>=0),statusstatus_ordemNOTNULLDEFAULT'aberto',"veiculoId"INTEGERNOTNULLREFERENCESveiculos(id),"createdAt"TIMESTAMPTZNOTNULLDEFAULTNOW(),"updatedAt"TIMESTAMPTZNOTNULLDEFAULTNOW());4.5EntendendooDERObancopossuidoisrelacionamentosprincipais:PROPRIETARIOS||1:N|VEICULOS||1:N|ORDENS_SERVICOUSUARIOS(autenticaçãoindependente)Arelação1significaque:●Umproprietáriopodeterváriosveículos.●Umveículopertenceaapenasumproprietário.
+
+
+===== PAGE 13 =====
+Ja
+v
+aScript
+●Umveículopodepossuirváriasordensdeserviço.●Umaordemdeserviçopertenceaapenasumveículo.Achaveestrangeiraéresponsávelpormanteressarelação.5.AlternativaA—SQLcompg(semSequelize)Nestaopção,utilizamosinstruçõesSQLdiretamente.OpacotepgenviaasconsultasaoPostgreSQL.OsresultadosdeSELECTficamdisponíveisemresult.rows.NãosãonecessáriosModels.5.1ConexãocomPostgreSQLArquivosrc/config/database.js:importpgfrom"pg";importdotenvfrom"dotenv";dotenv.config();const{Pool}=pg;exportconstpool=newPool({host:process.env.DB_HOST,port:Number(process.env.DB_PORT||5432),database:process.env.DB_NAME,user:process.env.DB_USER,password:process.env.DB_PASSWORD});OPoolmantémumconjuntodeconexõesparareutilização.Issoevitaabrirumanovaconexãofísicacomobancoacadarequisição.5.2ListarecadastrarproprietáriosArquivosrc/controllers/proprietarioController.js:
+
+
+===== PAGE 14 =====
+Ja
+v
+aScript
+import{pool}from"../config/database.js";exportconstlistarProprietarios=async(req,res)=>{try{constresultado=awaitpool.query(`SELECTid,nome,email,telefoneFROMproprietariosORDERBYnome`);returnres.json(resultado.rows);}catch(erro){returnres.status(500).json({mensagem:"Erroaolistarproprietários."});}};exportconstcriarProprietario=async(req,res)=>{try{const{nome,email,telefone,cpf}=req.body;constresultado=awaitpool.query(`INSERTINTOproprietarios(nome,email,telefone,cpf)VALUES($1,$2,$3,$4)RETURNINGid,nome,email,telefone`,[nome,email,telefone,cpf]);returnres.status(201).json(resultado.rows[0]);}catch(erro){returnres.status(400).json({mensagem:"Nãofoipossívelcadastrarproprietário."});}};
+
+
+===== PAGE 15 =====
+Ja
+v
+aScript
+Osmarcadores$1,$2,$3e$4sãoparâmetrosdaconsulta.Osvaloressãoenviadosseparadamente,evitandoconcatenartextorecebidodousuáriodiretamentenoSQLereduzindooriscodeSQLInjection.5.3ListarveículosedadosdoproprietáriocomJOINArquivosrc/controllers/veiculoController.js:import{pool}from"../config/database.js";exportconstlistarVeiculos=async(req,res)=>{try{constresultado=awaitpool.query(`SELECTv.id,v.marca,v.modelo,v.placa,v.ano,v.cor,p.idAS"proprietarioId",p.nomeAS"proprietarioNome"FROMveiculosvINNERJOINproprietariospONp.id=v."proprietarioId"ORDERBYv.modelo`);returnres.json(resultado.rows);}catch(erro){returnres.status(500).json({mensagem:"Erroaolistarveículos."});}};OINNERJOINcombinaaslinhasdeveículoseproprietáriosutilizandoachaveestrangeiraproprietarioId.
+
+
+===== PAGE 16 =====
+Ja
+v
+aScript
+Assim,aAPIpoderetornaronomedoproprietáriojuntodosdadosdoveículo.5.4CadastrarumveículoAindanoveiculoController.js:exportconstcriarVeiculo=async(req,res)=>{try{const{marca,modelo,placa,ano,cor,proprietarioId}=req.body;constresultado=awaitpool.query(`INSERTINTOveiculos(marca,modelo,placa,ano,cor,"proprietarioId")VALUES($1,$2,$3,$4,$5,$6)RETURNING*`,[marca,modelo,placa,ano,cor,proprietarioId]);returnres.status(201).json(resultado.rows[0]);}catch(erro){returnres.status(400).json({mensagem:"Nãofoipossívelcadastrarveículo."});}};Achaveestrangeiraimpedecadastrarumveículovinculadoaumproprietárioinexistente.Aplacatambémdeverespeitararestriçãodeunicidade.5.5Criarordemdeserviço
+
+
+===== PAGE 17 =====
+Ja
+v
+aScript
+Ja
+v
+aScript
+Arquivosrc/controllers/ordemServicoController.js:import{pool}from"../config/database.js";exportconstcriarOrdemServico=async(req,res)=>{try{const{descricao,tipoServico,valor,veiculoId}=req.body;constresultado=awaitpool.query(`INSERTINTOordens_servico(descricao,"tipoServico",valor,"veiculoId")VALUES($1,$2,$3,$4)RETURNING*`,[descricao,tipoServico,valor,veiculoId]);returnres.status(201).json(resultado.rows[0]);}catch(erro){returnres.status(400).json({mensagem:"Nãofoipossívelcriarordemdeserviço."});}};Ostatusserápreenchidoautomaticamentecomaberto,conformedefinidonobancodedados.5.6ListarordensdeserviçocomJOINexportconstlistarOrdensServico=async(req,res)=>{try{constresultado=awaitpool.query(`
+
+
+===== PAGE 18 =====
+SELECTos.id,os."dataEntrada",os.descricao,os."tipoServico",os.valor,os.status,v.placa,v.modelo,v.marca,p.nomeAS"proprietarioNome"FROMordens_servicoosINNERJOINveiculosvONv.id=os."veiculoId"INNERJOINproprietariospONp.id=v."proprietarioId"ORDERBYos."dataEntrada"DESC`);returnres.json(resultado.rows);}catch(erro){returnres.status(500).json({mensagem:"Erroaolistarordensdeserviço."});}};ObservequeagorautilizamosdoisINNERJOIN.Aprimeirarelaçãolocalizaoveículodaordemdeserviço.Asegundarelaçãolocalizaoproprietáriodaqueleveículo.Comisso,alistagemapresentatodasasinformaçõesnecessáriassemprecisarfazerváriasrequisiçõesdiferentes.5.7Atualizarostatusdaordemdeserviço
+
+
+===== PAGE 19 =====
+Ja
+v
+aScript
+exportconstatualizarStatus=async(req,res)=>{try{const{id}=req.params;const{status}=req.body;constresultado=awaitpool.query(`UPDATEordens_servicoSETstatus=$1,"updatedAt"=NOW()WHEREid=$2RETURNING*`,[status,id]);if(resultado.rowCount===0){returnres.status(404).json({mensagem:"Ordemdeserviçonãoencontrada."});}returnres.json(resultado.rows[0]);}catch(erro){returnres.status(400).json({mensagem:"Nãofoipossívelatualizarostatus."});}};Oexemploutilizaarestriçãodevaloresdacolunastatus.UmaatualizaçãocomvalordiferentedospermitidosserárejeitadapeloPostgreSQL.6.AlternativaB—SequelizeSequelizeéumORM(Object-RelationalMapper).OdesenvolvedordescrevecadatabelapormeiodeumModelJavaScript.Métodoscomo:●findAll()
+
+
+===== PAGE 20 =====
+Ja
+v
+aScript
+Ja
+v
+aScript
+●findOne()●create()●update()●findOrCreate()representamoperaçõesdeconsultaepersistência.AsassociaçõesentreModelspermitemcarregardadosrelacionados.6.1ConexãoArquivosrc/config/database.js:import{Sequelize}from"sequelize";importdotenvfrom"dotenv";dotenv.config();exportconstsequelize=newSequelize(process.env.DB_NAME,process.env.DB_USER,process.env.DB_PASSWORD,{host:process.env.DB_HOST,port:Number(process.env.DB_PORT||5432),dialect:"postgres",logging:false});6.2ModelProprietarioArquivosrc/models/Proprietario.js:import{DataTypes}from"sequelize";import{sequelize}from"../config/database.js";exportconstProprietario=sequelize.define(
+
+
+===== PAGE 21 =====
+Ja
+v
+aScript
+"Proprietario",{nome:{type:DataTypes.STRING(120),allowNull:false},email:{type:DataTypes.STRING(160),allowNull:false,unique:true},telefone:{type:DataTypes.STRING(20),allowNull:false},cpf:{type:DataTypes.TEXT,allowNull:false}},{tableName:"proprietarios",timestamps:true});OModelrepresentaatabelaproprietarios.Osatributosdeclaradoscorrespondemàscolunasdobancodedados.6.3ModelVeiculoArquivosrc/models/Veiculo.js:import{DataTypes}from"sequelize";import{sequelize}from"../config/database.js";exportconstVeiculo=sequelize.define(
+
+
+===== PAGE 22 =====
+Ja
+v
+aScript
+"Veiculo",{marca:{type:DataTypes.STRING(80),allowNull:false},modelo:{type:DataTypes.STRING(100),allowNull:false},placa:{type:DataTypes.STRING(10),allowNull:false,unique:true},ano:{type:DataTypes.INTEGER},cor:{type:DataTypes.STRING(40)}},{tableName:"veiculos",timestamps:true});OcampoproprietarioIdseráadicionadopelaassociaçãoentreosModels.6.4ModelOrdemServicoArquivosrc/models/OrdemServico.js:import{DataTypes}from"sequelize";import{sequelize}from"../config/database.js";exportconstOrdemServico=sequelize.define(
+
+
+===== PAGE 23 =====
+"OrdemServico",{dataEntrada:{type:DataTypes.DATE,allowNull:false,defaultValue:DataTypes.NOW},descricao:{type:DataTypes.STRING(255),allowNull:false},tipoServico:{type:DataTypes.STRING(100),allowNull:false},valor:{type:DataTypes.DECIMAL(10,2),allowNull:false,defaultValue:0,validate:{min:0}},status:{type:DataTypes.STRING(20),allowNull:false,defaultValue:"aberto",validate:{isIn:[["aberto","em_andamento","concluido","cancelado"]]}}},{tableName:"ordens_servico",
+
+
+===== PAGE 24 =====
+None
+Ja
+v
+aScript
+timestamps:true});OModeldefineasregrasdevalidaçãoutilizadaspeloSequelize.Asrestriçõesdobancocontinuamsendoimportantesparaprotegerosdados.aquiostatustambempodeseralteradoporumenumstatus:{type:DataTypes.ENUM("aberto","em_andamento","concluido","cancelado"),allowNull:false,defaultValue:"aberto"}6.5ModelUsuarioArquivosrc/models/Usuario.js:import{DataTypes}from"sequelize";import{sequelize}from"../config/database.js";exportconstUsuario=sequelize.define(
+
+
+===== PAGE 25 =====
+"Usuario",{nome:{type:DataTypes.STRING(120),allowNull:false},email:{type:DataTypes.STRING(160),allowNull:false,unique:true},senha:{type:DataTypes.STRING(255),allowNull:false},perfil:{type:DataTypes.STRING(20),allowNull:false,validate:{isIn:[["admin","atendente","tecnico"]]}}},{tableName:"usuarios",timestamps:true});6.6AssociaçõesentreModelsArquivosrc/models/index.js:
+
+
+===== PAGE 26 =====
+Ja
+v
+aScript
+import{Usuario}from"./Usuario.js";import{Proprietario}from"./Proprietario.js";import{Veiculo}from"./Veiculo.js";import{OrdemServico}from"./OrdemServico.js";//ProprietáriopossuiváriosveículosProprietario.hasMany(Veiculo,{foreignKey:"proprietarioId",as:"veiculos"});Veiculo.belongsTo(Proprietario,{foreignKey:"proprietarioId",as:"proprietario"});//VeículopossuiváriasordensdeserviçoVeiculo.hasMany(OrdemServico,{foreignKey:"veiculoId",as:"ordensServico"});OrdemServico.belongsTo(Veiculo,{foreignKey:"veiculoId",as:"veiculo"});export{Usuario,Proprietario,Veiculo,OrdemServico};OmétodohasMany()representaumarelaçãodeumparamuitos.OmétodobelongsTo()representaarelaçãodepertencimento.Oalias(apelido)informadoeminclude,porexemploas:"proprietario",deveserigualaoaliasdefinidonaassociação.
+
+
+===== PAGE 27 =====
+Ja
+v
+aScript
+6.7ControllerscomSequelizeListarecadastrarproprietáriosArquivosrc/controllers/proprietarioController.js:import{Proprietario}from"../models/index.js";exportconstlistarProprietarios=async(req,res)=>{try{constproprietarios=awaitProprietario.findAll({attributes:{exclude:["cpf"]},order:[["nome","ASC"]]});returnres.json(proprietarios);}catch(erro){returnres.status(500).json({mensagem:"Erroaolistarproprietários."});}};exportconstcriarProprietario=async(req,res)=>{try{const{nome,email,telefone,cpf}=req.body;constproprietario=awaitProprietario.create({nome,email,telefone,cpf
+
+
+===== PAGE 28 =====
+Ja
+v
+aScript
+});returnres.status(201).json({id:proprietario.id,nome:proprietario.nome,email:proprietario.email,telefone:proprietario.telefone});}catch(erro){returnres.status(400).json({mensagem:"Nãofoipossívelcadastrarproprietário."});}};OmétodofindAll()retornatodososregistros.Ométodocreate()criaumnovoregistro.OatributoexcludeevitaqueoCPFsejaretornadonessalistagem.ListarveículoscomproprietárioArquivosrc/controllers/veiculoController.js:import{Veiculo,Proprietario}from"../models/index.js";exportconstlistarVeiculos=async(req,res)=>{try{constveiculos=awaitVeiculo.findAll({include:[{model:Proprietario,as:"proprietario",attributes:["id","nome"]}],
+
+
+===== PAGE 29 =====
+Ja
+v
+aScript
+order:[["modelo","ASC"]]});returnres.json(veiculos);}catch(erro){returnres.status(500).json({mensagem:"Erroaolistarveículos."});}};ComoSequelize,utilizamosincludeparacarregarosdadosrelacionados.AmesmaoperaçãoescritacompgexigiriaumSELECTcomJOIN.CadastrarveículoexportconstcriarVeiculo=async(req,res)=>{try{const{marca,modelo,placa,ano,cor,proprietarioId}=req.body;constveiculo=awaitVeiculo.create({marca,modelo,placa,ano,cor,proprietarioId});returnres.status(201).json(veiculo);
+
+
+===== PAGE 30 =====
+Ja
+v
+aScript
+}catch(erro){returnres.status(400).json({mensagem:"Nãofoipossívelcadastrarveículo."});}};CriarordemdeserviçoArquivosrc/controllers/ordemServicoController.js:import{OrdemServico,Veiculo}from"../models/index.js";exportconstcriarOrdemServico=async(req,res)=>{try{const{descricao,tipoServico,valor,veiculoId}=req.body;constordem=awaitOrdemServico.create({descricao,tipoServico,valor,veiculoId});returnres.status(201).json(ordem);}catch(erro){returnres.status(400).json({mensagem:"Nãofoipossívelcriarordemdeserviço."
+
+
+===== PAGE 31 =====
+Ja
+v
+aScript
+});}};Listarordensdeserviçocomveículoeproprietárioimport{OrdemServico,Veiculo,Proprietario}from"../models/index.js";exportconstlistarOrdensServico=async(req,res)=>{try{constordens=awaitOrdemServico.findAll({include:[{model:Veiculo,as:"veiculo",include:[{model:Proprietario,as:"proprietario",attributes:["id","nome"]}]}],order:[["dataEntrada","DESC"]]});returnres.json(ordens);}catch(erro){returnres.status(500).json({mensagem:"Erroaolistarordensdeserviço."});}};OSequelizeutilizaasassociaçõesparacarregarosdadosdoveículoedoproprietário.Atualizarstatus
+
+
+===== PAGE 32 =====
+Ja
+v
+aScript
+Ja
+v
+aScript
+exportconstatualizarStatus=async(req,res)=>{try{const{id}=req.params;const{status}=req.body;constordem=awaitOrdemServico.findByPk(id);if(!ordem){returnres.status(404).json({mensagem:"Ordemdeserviçonãoencontrada."});}awaitordem.update({status});returnres.json(ordem);}catch(erro){returnres.status(400).json({mensagem:"Nãofoipossívelatualizarostatus."});}};6.8CriarastabelascomSequelizeDepoisdeimportarosModelseregistrarasassociações:import{sequelize}from"./config/database.js";import"./models/index.js";awaitsequelize.authenticate();awaitsequelize.sync();Ométodoauthenticate()verificaaconexãocomobanco.Ométodosync()sincronizaosModelscomastabelas.
+
+
+===== PAGE 33 =====
+Ja
+v
+aScript
+Atenção:utilizesync()apenasnoambientededesenvolvimentoecomobancopreparadoparaisso.Nãoutilizesync({alter:true})ousync({force:true})indiscriminadamenteembancosquejápossuemdados.Paraambientesreais,prefiramigrations.7.Autenticação,rotaseservidorAautenticaçãoseráigualnasduasalternativas.Ousuárioinformae-mailesenha.Obackendlocalizaousuário,comparaasenhautilizandobcryptegeraumtokenJWT.7.1MiddlewareJWTArquivosrc/middlewares/auth.js:importjwtfrom"jsonwebtoken";exportconstautenticar=(req,res,next)=>{consttoken=req.headers.authorization?.split("")[1];if(!token){returnres.status(401).json({mensagem:"Tokennãoinformado."});}try{req.usuario=jwt.verify(token,process.env.JWT_SECRET);returnnext();}catch{returnres.status(401).json({mensagem:"Tokeninválidoouexpirado."});
+
+
+===== PAGE 34 =====
+Ja
+v
+aScript
+Ja
+v
+aScript
+Ja
+v
+aScript
+}};Omiddlewareverificaseexisteumtokenválido.Casoestejaválido,permitequearequisiçãocontinue.Casonãoestejaválido,retornaHTTP401.7.2LoginAcomparaçãodasenhaeacriaçãodoJWTsãoiguaisnasduasversões.Oquemudaéaformadelocalizarousuário.Consultacompgconstresultado=awaitpool.query(`SELECTid,nome,email,senha,perfilFROMusuariosWHEREemail=$1`,[email]);constusuario=resultado.rows[0];ConsultacomSequelizeconstusuario=awaitUsuario.findOne({where:{email}});Lógicacomumàsduasalternativasimportbcryptfrom"bcrypt";importjwtfrom"jsonwebtoken";
+
+
+===== PAGE 35 =====
+Ja
+v
+aScript
+constsenhaValida=usuario&&awaitbcrypt.compare(senha,usuario.senha);if(!senhaValida){returnres.status(401).json({mensagem:"Credenciaisinválidas."});}consttoken=jwt.sign({id:usuario.id,perfil:usuario.perfil},process.env.JWT_SECRET,{expiresIn:"30m"});returnres.json({token,usuario:{id:usuario.id,nome:usuario.nome,perfil:usuario.perfil}});Oexemplopressupõequeousuáriojáestejacadastradocomsenhageradaporbcrypt.7.3RotasExpressArquivosrc/routes/index.js:import{Router}from"express";import{autenticar}from"../middlewares/auth.js";
+
+
+===== PAGE 36 =====
+import{login}from"../controllers/authController.js";import{listarProprietarios,criarProprietario}from"../controllers/proprietarioController.js";import{listarVeiculos,criarVeiculo}from"../controllers/veiculoController.js";import{listarOrdensServico,criarOrdemServico,atualizarStatus}from"../controllers/ordemServicoController.js";constrouter=Router();//Autenticaçãorouter.post("/auth/login",login);//Proprietáriosrouter.get("/proprietarios",autenticar,listarProprietarios);router.post("/proprietarios",autenticar,criarProprietario);//Veículosrouter.get("/veiculos",autenticar,listarVeiculos);router.post("/veiculos",autenticar,criarVeiculo);//Ordensdeserviçorouter.get("/ordens-servico",autenticar,listarOrdensServico);router.post("/ordens-servico",autenticar,criarOrdemServico);router.patch("/ordens-servico/:id/status",autenticar,
+
+
+===== PAGE 37 =====
+Ja
+v
+aScript
+atualizarStatus);exportdefaultrouter;ParacompletaroCRUD,crietambémasrotasPUT/PATCHeDELETEnecessáriaseimplementeoscontrollerscorrespondentes.Protejaasrotasdeacordocomosperfisautorizados.7.4InicializaçãodoservidorArquivosrc/server.js:importexpressfrom"express";importcorsfrom"cors";importdotenvfrom"dotenv";importrouterfrom"./routes/index.js";dotenv.config();constapp=express();app.use(cors({origin:process.env.FRONTEND_ORIGIN}));app.use(express.json());app.use("/api",router);constiniciar=async()=>{try{//Opçãopg://importepooleexecuteawaitpool.query("SELECT1").//OpçãoSequelize:
+
+
+===== PAGE 38 =====
+//importesequelizeeosModels/associações;//executeawaitsequelize.authenticate().app.listen(process.env.PORT||3000,()=>{console.log("Servidoriniciado.");});}catch(erro){console.error("Falhaaoiniciar:",erro);process.exit(1);}};iniciar();Naopçãopg,testeaconexãocompool.query("SELECT1").NaopçãoSequelize,testecomsequelize.authenticate().Oservidordeveráiniciarsomentedepoisdeconfirmaraconexãocomobanco.8.Seed—PopularobancoAcargainicialcriaregistrosdedemonstraçãoparatestarrelacionamentosetelas.Oobjetivoéter,nomínimo:●Trêsusuários.●Trêsproprietários.●Trêsveículos.●Trêsordensdeserviço.OsregistrosdependentesdevemutilizarosIDsgeradospelastabelasanteriores.8.1SeedcomSQL/pgNaalternativasemSequelize,oseedpodeserexecutadocomoarquivo.sqlcomINSERTsoucomoscriptJavaScriptqueutilizapool.query().Parausuários,gereohashdasenhacombcryptantesdoINSERT.Exemplo:
+
+
+===== PAGE 39 =====
+Ja
+v
+aScript
+constproprietario=awaitpool.query(`INSERTINTOproprietarios(nome,email,telefone,cpf)VALUES($1,$2,$3,$4)RETURNINGid`,["CarlosSilva","carlos@email.com","48999990000","11122233344"]);constproprietarioId=proprietario.rows[0].id;constveiculo=awaitpool.query(`INSERTINTOveiculos(marca,modelo,placa,ano,cor,"proprietarioId")VALUES($1,$2,$3,$4,$5,$6)RETURNINGid`,["Volkswagen","Gol","ABC1D23",2020,"Branco",proprietarioId]);constveiculoId=veiculo.rows[0].id;awaitpool.query(`INSERTINTOordens_servico(descricao,"tipoServico",valor,"veiculoId")VALUES($1,$2,$3,$4)`,["Manutençãopreventiva","Trocadeóleo",
+
+
+===== PAGE 40 =====
+Ja
+v
+aScript
+Ja
+v
+aScript
+180.00,veiculoId]);Repitaaoperaçãoparaostrêsproprietários,veículoseordensdeserviço.Utilizeumatransaçãoecondiçõesdeunicidadeparaevitardeixarregistrosparciaisouduplicadosemreexecuções.8.2SeedcomSequelizeNaalternativaSequelize,oscriptimportaosModelseutilizafindOrCreate()paralocalizaroucriarregistros.Exemplodeproprietário:const[proprietario]=awaitProprietario.findOrCreate({where:{email:"carlos@email.com"},defaults:{nome:"CarlosSilva",email:"carlos@email.com",telefone:"48999990000",cpf:"11122233344"},transaction});Exemplodeveículo:const[veiculo]=awaitVeiculo.findOrCreate({where:{placa:"ABC1D23"},defaults:{marca:"Volkswagen",
+
+
+===== PAGE 41 =====
+Ja
+v
+aScript
+Shell
+modelo:"Gol",placa:"ABC1D23",ano:2020,cor:"Branco",proprietarioId:proprietario.id},transaction});Exemplodeordemdeserviço:awaitOrdemServico.findOrCreate({where:{descricao:"Manutençãopreventiva",veiculoId:veiculo.id},defaults:{descricao:"Manutençãopreventiva",tipoServico:"Trocadeóleo",valor:180.00,status:"aberto",veiculoId:veiculo.id},transaction});Oscriptcompletodeverácriartambémostrêsusuárioscomsenhascriptografadasporbcrypt.Aoperaçãodeveráserexecutadadentrodeumatransação,comcommitaofinalizarourollbackcasoocorraalgumerro.Exemplodeexecução:npmrunseed
+
+
+===== PAGE 42 =====
+Ja
+v
+aScript
+None
+9.FrontendReactcomAxiosAinterfacepodeserigualnasduasalternativasporqueonavegadorconversacomaAPIHTTP,nãodiretamentecomoPostgreSQL.Paramanterofrontendindependentedomecanismodepersistência,preserveoscaminhoseoformatoJSONdasrespostas.9.1ConfigurarAxiosArquivoclient/src/services/api.js:importaxiosfrom"axios";constapi=axios.create({baseURL:import.meta.env.VITE_API_URL});api.interceptors.request.use((config)=>{consttoken=sessionStorage.getItem("token");if(token){config.headers.Authorization=`Bearer${token}`;}returnconfig;});exportdefaultapi;OAxioscriaumainstânciacentralizadaparaasrequisições.OinterceptoradicionaotokenJWTautomaticamentenocabeçalhoAuthorization.9.2Logincomarrowfunctioneasync/awaitArquivoclient/src/components/Login.jsx:import{useState}from"react";
+
+
+===== PAGE 43 =====
+importapifrom"../services/api";constLogin=({onLogin})=>{const[email,setEmail]=useState("");const[senha,setSenha]=useState("");const[erro,setErro]=useState("");constrealizarLogin=async(event)=>{event.preventDefault();setErro("");try{constresposta=awaitapi.post("/auth/login",{email,senha});sessionStorage.setItem("token",resposta.data.token);onLogin(resposta.data.usuario);}catch(error){setErro(error.response?.data?.mensagem||"Falhaaoentrar.");}};return(<formonSubmit={realizarLogin}><h2>GestãoAutomotiva</h2><labelhtmlFor="email">E-mail</label>
+
+
+===== PAGE 44 =====
+<inputid="email"type="email"value={email}onChange={(event)=>setEmail(event.target.value)}required/><labelhtmlFor="senha">Senha</label><inputid="senha"type="password"value={senha}onChange={(event)=>setSenha(event.target.value)}required/><buttontype="submit">Entrar</button>{erro&&<p>{erro}</p>}</form>);};exportdefaultLogin;OmétodopreventDefault()evitaqueoformuláriorecarregueapágina.Oapi.post()enviaosdadosaobackend.OawaitaguardaarespostadaAPIantesdecontinuaraexecução.9.3ListarproprietáriosusandouseEffect
+
+
+===== PAGE 45 =====
+None
+Arquivoclient/src/components/Proprietarios.jsx:import{useEffect,useState}from"react";importapifrom"../services/api";constProprietarios=()=>{const[proprietarios,setProprietarios]=useState([]);const[carregando,setCarregando]=useState(true);const[erro,setErro]=useState("");constcarregarProprietarios=async()=>{try{setCarregando(true);constresposta=awaitapi.get("/proprietarios");setProprietarios(resposta.data);}catch(error){setErro("Nãofoipossívelcarregarproprietários.");}finally{setCarregando(false);}};useEffect(()=>{carregarProprietarios();},[]);if(carregando){return<p>Carregando...</p>;}if(erro){return<p>{erro}</p>;}return(<section>
+
+
+===== PAGE 46 =====
+None
+<h2>Proprietários</h2>{proprietarios.map((proprietario)=>(<pkey={proprietario.id}>{proprietario.nome}-{""}{proprietario.email}</p>))}</section>);};exportdefaultProprietarios;OcallbackdeuseEffectnãoéasync.Elechamaumafunçãoassíncronadefinidanocomponente.Dessaforma,oefeitonãoretornaumaPromisenolugardafunçãodelimpezaopcionaldoReact.9.4ListarveículosArquivoclient/src/components/Veiculos.jsx:import{useEffect,useState}from"react";importapifrom"../services/api";constVeiculos=()=>{const[veiculos,setVeiculos]=useState([]);const[carregando,setCarregando]=useState(true);const[erro,setErro]=useState("");constcarregarVeiculos=async()=>{try{constresposta=awaitapi.get("/veiculos");setVeiculos(resposta.data);
+
+
+===== PAGE 47 =====
+}catch(error){setErro("Erroaocarregarveículos.");}finally{setCarregando(false);}};useEffect(()=>{carregarVeiculos();},[]);if(carregando)return<p>Carregando...</p>;if(erro)return<p>{erro}</p>;return(<section><h2>Veículos</h2>{veiculos.map((veiculo)=>(<divkey={veiculo.id}><p>{veiculo.marca}{veiculo.modelo}</p><p>Placa:{veiculo.placa}</p><p>Proprietário:{veiculo.proprietario?.nome||veiculo.proprietarioNome}</p></div>))}</section>);};
+
+
+===== PAGE 48 =====
+None
+exportdefaultVeiculos;ApropriedadedoproprietáriopodevariarconformeoformatodarespostadaAPI.Noexemplopg,onomevememproprietarioNome.NoexemploSequelize,onomevemdentrodoobjetoproprietario.Paraumaaplicaçãofinal,recomenda-sepadronizaroJSONdasduasalternativas.9.5ListarordensdeserviçoArquivoclient/src/components/OrdensServico.jsx:import{useEffect,useState}from"react";importapifrom"../services/api";constOrdensServico=()=>{const[ordens,setOrdens]=useState([]);const[carregando,setCarregando]=useState(true);const[erro,setErro]=useState("");constcarregarOrdens=async()=>{try{constresposta=awaitapi.get("/ordens-servico");setOrdens(resposta.data);}catch(error){setErro("Erroaocarregarserviços.");}finally{setCarregando(false);}};useEffect(()=>{carregarOrdens();
+
+
+===== PAGE 49 =====
+},[]);if(carregando)return<p>Carregando...</p>;if(erro)return<p>{erro}</p>;return(<section><h2>Ordensdeserviço</h2>{ordens.map((ordem)=>(<divkey={ordem.id}><p>Serviço:{ordem.tipoServico}</p><p>Descrição:{ordem.descricao}</p><p>Veículo:{ordem.veiculo?.modelo||ordem.modelo}</p><p>Proprietário:{ordem.veiculo?.proprietario?.nome||ordem.proprietarioNome}</p><p>Status:{ordem.status}</p><p>Valor:R${Number(ordem.valor).toFixed(2)
+
+
+===== PAGE 50 =====
+None
+}</p></div>))}</section>);};exportdefaultOrdensServico;Alistagemapresentainformaçõesrelacionadasdetrêsentidades:ordemdeserviço,veículoeproprietário.9.6DashboardsimplificadoArquivoclient/src/App.jsx:import{useState}from"react";importLoginfrom"./components/Login";importProprietariosfrom"./components/Proprietarios";importVeiculosfrom"./components/Veiculos";importOrdensServicofrom"./components/OrdensServico";import"./App.css";constApp=()=>{const[usuario,setUsuario]=useState(null);constsair=()=>{sessionStorage.removeItem("token");setUsuario(null);};return(<mainclassName="container">{!usuario?(
+
+
+===== PAGE 51 =====
+<LoginonLogin={(dados)=>setUsuario(dados)}/>):(<><headerclassName="topo"><div><h1>GestãoAutomotiva</h1><p>Bem-vindo(a),{usuario.nome}</p></div><buttononClick={sair}>Sair</button></header><divclassName="painel"><Proprietarios/><Veiculos/><OrdensServico/></div></>)}</main>);};exportdefaultApp;Odashboardapresentaasprincipaislistagensapósaautenticação.Aimplementaçãoinicialnãoexigeumsistemacomplexodenavegação.OobjetivoédemonstraraintegraçãoentreReact,Axios,APIePostgreSQL.9.7CSSbásico
+
+
+===== PAGE 52 =====
+CSS
+Arquivoclient/src/App.css:*{box-sizing:border-box;}body{margin:0;font-family:Arial,sans-serif;background:#f2f5f9;color:#243247;}.container{width:min(1100px,92%);margin:32pxauto;}.topo{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:24px;}.painel{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}.painelsection,form{padding:20px;background:white;border-radius:10px;box-shadow:02px10px#00000012;}
+
+
+===== PAGE 53 =====
+input{display:block;width:100%;margin:6px014px;padding:10px;border:1pxsolid#cbd5e1;border-radius:6px;}button{padding:10px16px;border:0;border-radius:6px;background:#1769aa;color:white;cursor:pointer;}@media(max-width:800px){.painel{grid-template-columns:1fr;}.topo{align-items:flex-start;flex-direction:column;}}10.EndpointsdaAPIResumodasrotasesperadas:MétodoEndpointFunçãoPOST/api/auth/loginRealizarlogin.GET/api/proprietariosListarproprietários.
+
+
+===== PAGE 54 =====
+POST/api/proprietariosCadastrarproprietário.GET/api/veiculosListarveículoseproprietários.POST/api/veiculosCadastrarveículo.GET/api/ordens-servicoListarordensdeserviço.POST/api/ordens-servicoCriarordemdeserviço.PATCH/api/ordens-servico/:id/statusAtualizarstatus.Todasasrotas,excetologin,devemexigirautenticaçãoJWT.11.ComparaçãodasduasabordagensCritérioSQLcompgSequelizeConsultasComandosSQLexecutadosporpool.query().MétodosdeModelcomofindAll(),findOne()ecreate().RelacionamentosJOINescritodiretamenteemSQL.AssociaçõeshasMany()/belongsTo()eopçãoinclude.EstruturadobackendControllerstrabalhamcomconsultaseresultados.ControllerstrabalhamcomModelseinstâncias.CadastroINSERTcomparâmetros.Métodocreate().AtualizaçãoUPDATEcomparâmetros.Métodoupdate().SeedINSERTSQLouscriptJavaScriptcompg.ScriptJavaScriptcomcreate()oufindOrCreate().PrincipalvantagemdidáticaPráticadiretadeSQL,JOINeparâmetros.PráticadeORM,Modelseassociações.CuidadosParâmetros,transaçõesemanutençãodasconsultas.Mapeamento,aliases,migrationseSQLgerado.Asduasalternativassãoválidas.OusodeORMnãoeliminaanecessidadedecompreenderSQL,chavesprimárias,chavesestrangeiras,normalizaçãoemodelagemrelacional.
+
+
+===== PAGE 55 =====
+JSON
+JSON
+12.TestesmínimosUtilizeInsomniaouPostmanparatestaraAPIantesdedesenvolvertodasastelas.12.1LoginEnviarPOST:http://localhost:3000/api/auth/loginCorpoJSON:{"email":"admin@email.com","senha":"123456"}Resultadoesperado:●HTTP200.●RetornodotokenJWT.●Retornodasinformaçõesbásicasdousuário.SenhaincorretadeveráretornarHTTP401.12.2CadastrarproprietárioEnviarPOST:http://localhost:3000/api/proprietarios{"nome":"CarlosSilva","email":"carlos@email.com","telefone":"48999990000","cpf":"11122233344"}Resultadoesperado:●HTTP201.
+
+
+===== PAGE 56 =====
+JSON
+JSON
+●Retornodosdadoscadastrados.12.3CadastrarveículoEnviarPOST:http://localhost:3000/api/veiculos{"marca":"Volkswagen","modelo":"Gol","placa":"ABC1D23","ano":2020,"cor":"Branco","proprietarioId":1}Resultadoesperado:●HTTP201.●Veículocadastradoerelacionadoaoproprietário.12.4CriarordemdeserviçoEnviarPOST:http://localhost:3000/api/ordens-servico{"descricao":"Manutençãopreventiva","tipoServico":"Trocadeóleo","valor":180.00,"veiculoId":1}Resultadoesperado:●HTTP201.●Ordemdeserviçocriada.●Statusinicialaberto.
+
+
+===== PAGE 57 =====
+JSON
+12.5AtualizarstatusEnviarPATCH:http://localhost:3000/api/ordens-servico/1/status{"status":"em_andamento"}Resultadoesperado:●HTTP200.●Ordemdeserviçocomstatusatualizado.12.6Testesobrigatórios●Logincomcredenciaisválidasretornatoken.●SenhaincorretaretornaHTTP401.●AcessoaumarotaprotegidasemtokenretornaHTTP401.●CadastrodeproprietáriopersisteosdadosealistagemnãoexpõeoCPF.●Cadastrodeveículoutilizaumproprietárioexistente.●Aplacanãopodeserduplicada.●Listagemdeveículosapresentaosdadosdoproprietáriorelacionado.●Ordemdeserviçoévinculadaaoveículocorreto.●Listagemdeordensapresentaveículoeproprietário.●Atualizaçãodestatusfunciona.●IDsinexistentessãorejeitadospelavalidaçãooupelaschavesestrangeiras.●Frontendapresentadados,carregamentoemensagensdeerro.●Seedpodeserexecutadonovamentesemduplicarosregistrosprevistospelocritériodebusca.13.SegurançaemelhoriasrecomendadasAprimeiraversãodosistemadeverámanteraimplementaçãosimples,masalgumasmelhoriassãoimportantes:●ValidarosdadosrecebidospelaAPI,porexemplocomZod,antesdegravarnobanco.●Implementarautorizaçãoporperfil(RBAC):autenticaçãoidentificaousuário;autorizaçãolimitaasaçõespermitidas.
+
+
+===== PAGE 58 =====
+●Adicionarratelimit,CORSrestritoetratamentocentralizadodeerros.●NãoretornarsenhasouCPFnasrespostasdesnecessárias.●CifraroCPFcomencriptaçãoassincrona●Validaraplacadoveículoeimpedirduplicidades.●Impedirqueordensdeserviçosejamcriadasparaveículosinexistentes.●Restringiralteraçõesdestatusconformeasregrasdaempresa.●Evitarexcluirveículosquepossuamordensdeserviçorelacionadas.●Utilizartransaçõesquandoumaoperaçãoenvolverváriasgravações.●Utilizarvariáveisdeambienteparacredenciaisesegredos.14.Checklistdeconclusão●Bancocriadocomquatrotabelas,chavesprimáriaseestrangeiras.●BackendconectaaoPostgreSQLsemerros.●Umaúnicaestratégiadepersistênciaestáimplementadadepontaaponta.●Modelseassociaçõesimplementados,casotenhaescolhidoSequelize.●Seedinserepelomenostrêsregistrosportabela.●Senhasarmazenadasutilizandobcrypt.●LogineJWTestãofuncionando.●Rotasprotegidasestãofuncionando.●Cadastroelistagemdeproprietáriosestãofuncionando.●Cadastroelistagemdeveículosestãofuncionando.●Ordensdeserviçoestãovinculadasaosveículos.●Listagensapresentamosrelacionamentoscorretamente.●Atualizaçãodestatusestáfuncionando.●FrontendReactestáconsumindoaAPIporAxios.●Dashboardapresentaasinformaçõesprincipais.●TestesrealizadoscomInsomniaouPostman.●DocumentaçãoeDERcorrespondemaobancoimplementado.ConsideraçõesfinaisOprojetoGestãoAutomotivapermitetrabalharosmesmosconceitosdedesenvolvimentobackendefrontendemdoiscontextosempresariaisdiferentes.Naoficinamecânica,asordensdeserviçorepresentammanutenções,reparoserevisões.Nolava-car,representamlavagens,higienizaçõeseoutrosserviçosautomotivos.Aestruturadobancodedados,aautenticação,aAPIeofrontendpermanecemosmesmos.
+
+
+===== PAGE 59 =====
+Oprincipalobjetivoécompreendercomoasentidadesserelacionam,comoobackendacessaobancodedadosecomooReactconsomeasinformaçõesdisponibilizadaspelaAPI.OalunopoderáescolherentreSQLcompgeSequelize,mantendoosmesmosrequisitosfuncionaiseresultadosesperados.
