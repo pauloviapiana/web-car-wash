@@ -42,6 +42,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
+  align-items: start; /* painéis altos (com form) não esticam os vizinhos */
   padding: 0;
   background: transparent;
   box-shadow: none;
@@ -58,7 +59,8 @@ label {
   font-size: 0.9rem;
 }
 
-input {
+input,
+select {
   display: block;
   width: 100%;
   margin: 6px 0 14px;
@@ -68,7 +70,8 @@ input {
   font: inherit;
 }
 
-input:disabled {
+input:disabled,
+select:disabled {
   background: #f1f5f9;
   cursor: not-allowed;
 }
@@ -93,12 +96,21 @@ button:disabled {
 }
 
 .mensagem-erro {
-  margin: 14px 0 0;
+  margin: 10px 0;
   padding: 10px 12px;
   border-radius: 6px;
   background: #fef2f2;
   color: #b91c1c;
   border: 1px solid #fecaca;
+}
+
+.mensagem-sucesso {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
 }
 
 /* Cada listagem vira um “cartão” próprio dentro do grid */
@@ -113,6 +125,61 @@ button:disabled {
 .painel-listagem h2 {
   margin: 0 0 12px;
   font-size: 1.15rem;
+}
+
+/* Formulário de cadastro dentro de cada painel (Fase 9) */
+.formulario-cadastro {
+  margin: 0 0 16px;
+  padding: 12px;
+  padding-bottom: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.formulario-cadastro h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.formulario-cadastro input,
+.formulario-cadastro select {
+  margin: 4px 0 10px;
+  padding: 8px 10px;
+}
+
+.formulario-cadastro button {
+  margin-top: 4px;
+  width: 100%;
+}
+
+.formulario-busca {
+  margin: 0 0 16px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.formulario-busca input {
+  margin-bottom: 8px;
+}
+
+/* Lista longa não “estoura” o painel; rola por dentro */
+.lista-painel {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.acoes-busca {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.botao-secundario {
+  background: #64748b;
 }
 
 .lista-simples {
@@ -138,7 +205,19 @@ button:disabled {
   font-size: 0.9rem;
 }
 
-/* Mobile / tablet estreito: 1 coluna */
+.controle-status {
+  margin-top: 8px;
+}
+
+.controle-status label {
+  margin-bottom: 0;
+}
+
+.controle-status select {
+  margin-bottom: 0;
+}
+
+/* Mobile / tablet estreito: 1 coluna (grade da Fase 8 preservada no desktop) */
 @media (max-width: 900px) {
   .grade-listagens {
     grid-template-columns: 1fr;
@@ -147,5 +226,13 @@ button:disabled {
   .topo {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .formulario-cadastro button {
+    width: auto;
+  }
+
+  .lista-painel {
+    max-height: none;
   }
 }
